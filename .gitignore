@@ -1,0 +1,24 @@
+# Virtual Environments
+.venv
+venv/
+env/
+
+# Python Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch (Ignore intermediate model weights)
+*.pth
+# *.pt # Note: You might want to commit the final models/equalizer.pt
+
+# Data & Results (Uncomment to ignore generated results)
+# results/
+*.npy
+
+# Streamlit
+.streamlit/
+
+# OS generated files
+.DS_Store
+Thumbs.db
