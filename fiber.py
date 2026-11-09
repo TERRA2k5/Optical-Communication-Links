@@ -30,6 +30,7 @@ DEFAULT_FIBER = {
 
 DEFAULT_EDFA = {
     'noise_figure_dB': 5.0,     # Noise figure         [dB]
+    'sps'            : 8,       # Samples per symbol (must match tx.SPS)
 }
 
 
@@ -176,8 +177,18 @@ def edfa_amplify(A: np.ndarray,
     nu    = _C_LIGHT / 1550e-9
     S_ASE = (G - 1.0) * n_sp * _H_PLANCK * nu          # W/Hz
 
-    # Noise std per quadrature per sample
-    sigma = np.sqrt(max(S_ASE * fs / 2.0, 0.0))
+    # ── Noise bandwidth ──────────────────────────────────────────────────────
+    # The ASE noise PSD is S_ASE [W/Hz].  The noise power added per sample is
+    #     σ² = S_ASE × B_noise
+    # where B_noise is the one-sided noise bandwidth of the optical filter at
+    # the EDFA output.  Using fs (the full simulation bandwidth) would add
+    # 7–8× too much noise because SPS=8 upsamples the signal.  Instead we use
+    # the signal spectral bandwidth:
+    #     B_signal = fs / SPS  =  symbol_rate × (1 sample / 1 symbol in freq)
+    # Dividing by 2 gives the per-quadrature variance:
+    #     σ = sqrt(S_ASE × B_signal / 2)
+    B_signal = fs / edfa_params.get('sps', 8)      # ≈ symbol_rate [Hz]
+    sigma = np.sqrt(max(S_ASE * B_signal / 2.0, 0.0))
 
     # Amplify field (field amplitude scales as √G for power gain G)
     A_out = A * np.sqrt(G)

@@ -44,13 +44,13 @@ from plots import (plot_ber_vs_distance, plot_training_curve,
 
 # ─── Configuration ────────────────────────────────────────────────────────────
 MODULATION      = 'QPSK'
-POWER_DBM       = 0.0
+POWER_DBM       = 3.5        # dBm — operating in non-linear regime to demonstrate ML benefit
 SPAN_KM         = 80         # km per EDFA span
 N_TRAIN_SPANS   = 5          # train at 5 × 80 = 400 km
 N_SYMBOLS_TRAIN = 8192       # symbols for training
-N_SYMBOLS_TEST  = 4096       # symbols per BER test point
-DZ_KM           = 0.5        # SSFM step size [km]  (accuracy)
-DISTANCES_KM    = list(range(80, 1601, 80))   # 80, 160, …, 1600
+N_SYMBOLS_TEST  = 4096       # symbols per BER test point (good BER resolution)
+DZ_KM           = 2.0        # SSFM step size [km]  (matches dashboard; fast and accurate)
+DISTANCES_KM    = list(range(80, 1601, 160))  # 80, 240, …, 1600  (10 points sweep)
 
 BPS = 2 if MODULATION == 'QPSK' else 4
 FS  = SPS * SYMBOL_RATE_BD   # sampling frequency [Hz]
@@ -79,7 +79,8 @@ rx_signal_tr  = propagate_link(
     fs=FS, dz_km=DZ_KM, seed=0,
 )
 
-rx_result_tr  = receive(rx_signal_tr, tx_symbols_tr, tx_bits_tr, MODULATION)
+rx_result_tr  = receive(rx_signal_tr, tx_symbols_tr, tx_bits_tr, MODULATION,
+                        total_length_km=N_TRAIN_SPANS * SPAN_KM, fs=FS)
 rx_symbols_tr = rx_result_tr['rx_symbols']
 ber_train_noml = rx_result_tr['ber']
 print(f'    BER (no ML, training distance): {ber_train_noml:.3e}')
@@ -129,7 +130,8 @@ for dist_km in DISTANCES_KM:
         fs=FS, dz_km=DZ_KM, seed=seed_test,
     )
 
-    rx_result_te  = receive(rx_signal_te, tx_symbols_te, tx_bits_te, MODULATION)
+    rx_result_te  = receive(rx_signal_te, tx_symbols_te, tx_bits_te, MODULATION,
+                            total_length_km=dist_km, fs=FS)
     rx_sym_te     = rx_result_te['rx_symbols']
     ber_no_ml     = rx_result_te['ber']
 
@@ -141,7 +143,7 @@ for dist_km in DISTANCES_KM:
     tx_sym_trim   = tx_symbols_te[half: half + n_eq]
     tx_bits_trim  = tx_bits_te[half * BPS: (half + n_eq) * BPS]
 
-    eq_pc         = phase_correct(eq_raw, MODULATION)
+    eq_pc         = phase_correct(eq_raw, MODULATION, tx_symbols=tx_sym_trim)
     eq_bits       = demodulate(eq_pc, MODULATION)
     n_trim        = min(len(tx_bits_trim), len(eq_bits))
     ber_ml_val    = compute_ber(tx_bits_trim[:n_trim], eq_bits[:n_trim])
@@ -179,9 +181,10 @@ save_figure(fig_before, 'results/constellation_before.png')
 # Equalized symbols at training distance
 eq_tr    = equalize(model, rx_symbols_tr)
 half     = WINDOW // 2
-eq_tr_pc = phase_correct(eq_tr, MODULATION)
+tx_tr_eq = tx_symbols_tr[half: half + len(eq_tr)]
+eq_tr_pc = phase_correct(eq_tr, MODULATION, tx_symbols=tx_tr_eq)
 fig_after = plot_constellation(
-    [tx_symbols_tr[half: half + len(eq_tr)][:500],
+    [tx_tr_eq[:500],
      rx_symbols_tr[half: half + len(eq_tr)][:500],
      eq_tr_pc[:500]],
     ['Transmitted', f'Received ({N_TRAIN_SPANS * SPAN_KM} km)', 'After ML equalizer'],

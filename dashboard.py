@@ -43,11 +43,16 @@ st.set_page_config(
 
 # ─── Cached resources (loaded once per session) ───────────────────────────────
 @st.cache_resource
-def _get_model():
-    path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                        'models', 'equalizer.pt')
-    if os.path.exists(path):
-        return load_model(path)
+def _get_model(modulation: str = 'QPSK'):
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    mod_slug = '16qam' if modulation == '16-QAM' else 'qpsk'
+    path_specific = os.path.join(base_dir, 'models', f'equalizer_{mod_slug}.pt')
+    path_default  = os.path.join(base_dir, 'models', 'equalizer.pt')
+
+    if os.path.exists(path_specific):
+        return load_model(path_specific)
+    elif modulation == 'QPSK' and os.path.exists(path_default):
+        return load_model(path_default)
     return None
 
 
@@ -93,10 +98,8 @@ with st.sidebar:
         f'**Total distance:** {fiber_km} km'
     )
 
-    model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              'models', 'equalizer.pt')
-    if not os.path.exists(model_path):
-        st.warning('No trained model found.  \nRun `python generate_ber_curve.py` first.')
+    if _get_model(modulation) is None:
+        st.warning(f'No trained {modulation} model found.')
 
 # ─── Tabs ─────────────────────────────────────────────────────────────────────
 tab_live, tab_precomp = st.tabs(['📡 Live Results', '📊 Pre-computed Curves'])
@@ -123,7 +126,8 @@ with tab_live:
             rx_signal = tx_signal.copy()
 
         # ── Receiver (no equalizer) ────────────────────────────────────────────
-        rx_result  = receive(rx_signal, tx_symbols, tx_bits, modulation)
+        rx_result  = receive(rx_signal, tx_symbols, tx_bits, modulation,
+                             total_length_km=fiber_km, fs=FS)
         rx_symbols = rx_result['rx_symbols']
         mf_signal  = rx_result['mf_signal']
         ber_noml   = rx_result['ber']
@@ -131,7 +135,7 @@ with tab_live:
         # ── ML equalization ────────────────────────────────────────────────────
         eq_symbols = None
         ber_ml     = None
-        model      = _get_model()
+        model      = _get_model(modulation)
 
         if use_ml and model is not None:
             bps  = 2 if modulation == 'QPSK' else 4
@@ -144,7 +148,7 @@ with tab_live:
             tx_sym_eq  = tx_symbols[half: half + n_eq]
             tx_bits_eq = tx_bits[half * bps: (half + n_eq) * bps]
 
-            eq_pc      = phase_correct(eq_raw, modulation)
+            eq_pc      = phase_correct(eq_raw, modulation, tx_symbols=tx_sym_eq)
             eq_bits    = demodulate(eq_pc, modulation)
             n_trim     = min(len(tx_bits_eq), len(eq_bits))
             ber_ml     = compute_ber(tx_bits_eq[:n_trim], eq_bits[:n_trim])
@@ -183,7 +187,7 @@ with tab_live:
             syms_list, sym_lbl,
             title=f'{modulation} — {fiber_km} km — {power_dBm} dBm'
         )
-        st.pyplot(fig_const, use_container_width=True)
+        st.pyplot(fig_const, width='stretch')
 
     with col_right:
         st.subheader('Eye Diagram  (after matched filter)')
@@ -191,7 +195,7 @@ with tab_live:
             mf_signal, SPS,
             title=f'{modulation} — {fiber_km} km'
         )
-        st.pyplot(fig_eye, use_container_width=True)
+        st.pyplot(fig_eye, width='stretch')
 
 # ══════════════════════════════════════════════════════════════════════════════
 # TAB 2 — PRE-COMPUTED CURVES
@@ -210,7 +214,7 @@ with tab_precomp:
                 ber_data['ber_noml'],
                 ber_data['ber_ml'],
             )
-            st.pyplot(fig_ber, use_container_width=True)
+            st.pyplot(fig_ber, width='stretch')
         else:
             st.info(
                 '📂 No pre-computed data found.  \n'
@@ -221,7 +225,7 @@ with tab_precomp:
         st.subheader('Neural Network Training Curve')
         if tr_hist is not None:
             fig_tr = plot_training_curve(tr_hist)
-            st.pyplot(fig_tr, use_container_width=True)
+            st.pyplot(fig_tr, width='stretch')
         else:
             st.info(
                 '📂 No training history found.  \n'
@@ -233,9 +237,7 @@ with tab_precomp:
             import pandas as pd
             df = pd.DataFrame({
                 'Distance (km)': ber_data['distances'],
-                'BER (no ML)'  : ber_data['ber_noml'],
-                'BER (ML)'     : ber_data['ber_ml'],
+                'BER (no ML)'  : [f'{v:.3e}' for v in ber_data['ber_noml']],
+                'BER (ML)'     : [f'{v:.3e}' for v in ber_data['ber_ml']],
             })
-            st.dataframe(df.style.format({'BER (no ML)': '{:.3e}',
-                                          'BER (ML)'   : '{:.3e}'}),
-                         use_container_width=True)
+            st.dataframe(df, width='stretch')

@@ -101,15 +101,16 @@ def plot_constellation(symbols_list: list[np.ndarray],
     """
     colours = [_C_BLUE, _C_RED, _C_GREEN, _C_ORANGE]
     markers = ['o', 's', '^', 'D']
-    sizes   = [5,   4,   5,   4]
+    sizes   = [5,  5,   5,  5]
+    zorders = [10,  2,   3,   4]
 
     fig, ax = plt.subplots(figsize=(6, 6))
 
-    for syms, lbl, col, mk, sz in zip(
-            symbols_list, labels, colours, markers, sizes):
+    for syms, lbl, col, mk, sz, zo in zip(
+            symbols_list, labels, colours, markers, sizes, zorders):
         n = min(len(syms), max_points)
         ax.scatter(syms[:n].real, syms[:n].imag,
-                   s=sz, alpha=0.55, color=col, marker=mk, label=lbl)
+                   s=sz, alpha=0.55, color=col, marker=mk, label=lbl, zorder=zo)
 
     ax.axhline(0, color=_C_GREY, linewidth=0.7)
     ax.axvline(0, color=_C_GREY, linewidth=0.7)
