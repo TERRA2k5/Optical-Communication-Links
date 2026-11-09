@@ -1,5 +1,4 @@
 # Implementation Plan & Project Report
-
 ## AI-Based Impairment Compensation for High-Speed Optical Communication Links
 
 > Based on [TRD_AI_Optical_Link_Compensation.md](file:///D:/7th%20sem%20Project/TRD_AI_Optical_Link_Compensation.md) — B.Tech (ECE) Final-Year Simulation Project
@@ -15,7 +14,6 @@ All phases of the project have been implemented, tested, and verified against th
 ## Goal Description
 
 Build a high-performance **Python simulation** of a high-speed coherent fiber-optic communication link (32 GBd) that:
-
 1. Models optical field propagation through fiber (dispersion, Kerr nonlinearity, EDFA amplifier noise) using the **Split-Step Fourier Method (SSFM)** solving the Nonlinear Schrödinger Equation (NLSE).
 2. Implements a coherent DSP receiver with frequency-domain **Chromatic Dispersion Compensation (CDC)**, matched filtering, RMS normalisation, and pilot-aided **Carrier Phase Recovery (CPR)**.
 3. Demonstrates signal degradation and recovery via **eye diagrams** and **constellation diagrams**.
@@ -78,7 +76,6 @@ optical-link-ml/
 ## Component Implementation Summary
 
 ### 1. Transmitter (`tx.py`)
-
 - **Key Functions:**
   - `generate_bits(n_symbols, modulation='QPSK', seed=42) -> np.ndarray`
   - `modulate(bits, modulation='QPSK') -> np.ndarray` (Gray-coded QPSK & 16-QAM with unit average power)
@@ -87,7 +84,6 @@ optical-link-ml/
   - `set_launch_power(signal, power_dBm=0.0) -> np.ndarray` (RMS field scaling to target launch power in Watts)
 
 ### 2. Fiber Propagation & Amplification (`fiber.py`)
-
 - Solves the Nonlinear Schrödinger Equation (NLSE):
   $$\frac{\partial A}{\partial z} = -\frac{\alpha}{2}A - j\frac{\beta_2}{2}\frac{\partial^2 A}{\partial t^2} + j\gamma|A|^2 A$$
 - **SSFM Solver (`ssfm_propagate`):** Symmetric split-step scheme with $\Delta z = 2.0\text{ km}$.
@@ -96,7 +92,6 @@ optical-link-ml/
   Noise bandwidth is bounded by the symbol rate ($B_{\text{signal}} = F_s / \text{SPS} \approx R_s$).
 
 ### 3. Coherent Receiver DSP (`rx.py`)
-
 - **Chromatic Dispersion Compensation (`chromatic_dispersion_compensate`):**
   $$H_{\text{CDC}}(\omega) = \exp\left(+j \frac{\beta_2}{2}\omega^2 L\right)$$
 - **Matched Filtering & Downsampling (`matched_filter`, `downsample`):** Filters with identical RRC taps and extracts eye-center samples.
@@ -106,7 +101,6 @@ optical-link-ml/
 - **Demodulation & BER (`demodulate`, `compute_ber`):** Minimum Euclidean distance mapping to Gray bits and bit error rate computation.
 
 ### 4. Neural Network Equalizer (`ml.py`)
-
 - **Model Architecture:**
   - Input: $2W = 14$ features ($W=7$ symbols, Re and Im components).
   - Layer 1: Linear(14 $\to$ 64) + ReLU
@@ -117,14 +111,12 @@ optical-link-ml/
 - **Inference (`equalize`):** Fast sliding-window inference removing edge transients.
 
 ### 5. Visualization (`plots.py`)
-
 - `plot_eye_diagram`: Overlaid 2-symbol window eye traces for I and Q quadratures.
 - `plot_constellation`: Scatter plot with explicit `zorder=10` and solid borders for ideal reference symbols so they render clearly over received and equalized clouds.
 - `plot_ber_vs_distance`: Semilogarithmic curve with $10^{-3}$ FEC threshold line.
 - `plot_training_curve`: Training vs. Validation MSE loss.
 
 ### 6. Interactive Dashboard (`dashboard.py`)
-
 - Built with Streamlit, configured with responsive container widths (`width='stretch'`).
 - Live sidebar sliders for fiber length (80–1600 km), launch power (−5 to +5 dBm), modulation format, and ML toggle.
 - Dynamic model selection loading `models/equalizer_qpsk.pt` or `models/equalizer_16qam.pt` automatically.
@@ -135,33 +127,33 @@ optical-link-ml/
 
 ### Automated Test Suite (`test_project.py`)
 
-| Test Item                   | Verification Method                            | Result                                                  |  Status   |
-| :-------------------------- | :--------------------------------------------- | :------------------------------------------------------ | :-------: |
-| **Launch Power Scaling**    | `tx.set_launch_power` at 0 dBm                 | $P = 0.000\text{ dBm}$ ($\Delta < 0.01\text{ dB}$)      | Passed ✅ |
-| **Dispersion Parameter**    | `fiber._beta2_s2_km(17.0, 1550.0)`             | $\beta_2 = -2.167 \times 10^{-23}\text{ s}^2\text{/km}$ | Passed ✅ |
-| **Pulse Broadening**        | Signal RMS width comparison                    | Width increases significantly over fiber                | Passed ✅ |
-| **QPSK Back-to-Back**       | Direct Tx $\to$ Rx (no fiber)                  | $\text{BER} = 0.0000$                                   | Passed ✅ |
-| **16-QAM Back-to-Back**     | Direct Tx $\to$ Rx (no fiber)                  | $\text{BER} = 0.0000$                                   | Passed ✅ |
-| **Fiber Impairment**        | Uncompensated transmission ($400\text{ km}$)   | $\text{BER} \approx 0.4448 > 0$                         | Passed ✅ |
-| **CDC Restoration**         | CDC compensated transmission ($400\text{ km}$) | $\text{BER}$ drops to $0.0000$                          | Passed ✅ |
-| **NN Model Architecture**   | `ml.NNEqualizer` parameter count               | Exactly 5,250 parameters                                | Passed ✅ |
-| **NN Training Convergence** | 100 epochs on training data                    | Loss drops to $< 10^{-4}$ monotonically                 | Passed ✅ |
-| **Plot Generators**         | `plots.py` figure generation                   | All 4 functions return valid Figure objects             | Passed ✅ |
+| Test Item | Verification Method | Result | Status |
+| :--- | :--- | :--- | :---: |
+| **Launch Power Scaling** | `tx.set_launch_power` at 0 dBm | $P = 0.000\text{ dBm}$ ($\Delta < 0.01\text{ dB}$) | Passed ✅ |
+| **Dispersion Parameter** | `fiber._beta2_s2_km(17.0, 1550.0)` | $\beta_2 = -2.167 \times 10^{-23}\text{ s}^2\text{/km}$ | Passed ✅ |
+| **Pulse Broadening** | Signal RMS width comparison | Width increases significantly over fiber | Passed ✅ |
+| **QPSK Back-to-Back** | Direct Tx $\to$ Rx (no fiber) | $\text{BER} = 0.0000$ | Passed ✅ |
+| **16-QAM Back-to-Back** | Direct Tx $\to$ Rx (no fiber) | $\text{BER} = 0.0000$ | Passed ✅ |
+| **Fiber Impairment** | Uncompensated transmission ($400\text{ km}$) | $\text{BER} \approx 0.4448 > 0$ | Passed ✅ |
+| **CDC Restoration** | CDC compensated transmission ($400\text{ km}$) | $\text{BER}$ drops to $0.0000$ | Passed ✅ |
+| **NN Model Architecture** | `ml.NNEqualizer` parameter count | Exactly 5,250 parameters | Passed ✅ |
+| **NN Training Convergence** | 100 epochs on training data | Loss drops to $< 10^{-4}$ monotonically | Passed ✅ |
+| **Plot Generators** | `plots.py` figure generation | All 4 functions return valid Figure objects | Passed ✅ |
 
 ### Benchmark BER Sweep Results ($P_0 = +3.5\text{ dBm}$)
 
-| Distance (km) | Spans | Uncompensated / Baseline BER |      With ML Equalizer BER      |    Performance Gain     |
-| :-----------: | :---: | :--------------------------: | :-----------------------------: | :---------------------: |
-|    **80**     |   1   |      $0.000\text{e}+00$      |       $0.000\text{e}+00$        | Error-free transmission |
-|    **240**    |   3   |      $0.000\text{e}+00$      |       $0.000\text{e}+00$        | Error-free transmission |
-|    **400**    |   5   |      $0.000\text{e}+00$      |       $0.000\text{e}+00$        | Error-free transmission |
-|    **560**    |   7   |      $0.000\text{e}+00$      |       $0.000\text{e}+00$        | Error-free transmission |
-|    **720**    |   9   |      $0.000\text{e}+00$      |       $0.000\text{e}+00$        | Error-free transmission |
-|    **880**    |  11   |      $0.000\text{e}+00$      |       $0.000\text{e}+00$        | Error-free transmission |
-|   **1040**    |  13   |    $2.441 \times 10^{-4}$    | $\mathbf{1.222 \times 10^{-4}}$ |  **50% BER reduction**  |
-|   **1200**    |  15   |    $6.104 \times 10^{-4}$    | $\mathbf{4.890 \times 10^{-4}}$ |  **20% BER reduction**  |
-|   **1360**    |  17   |    $5.615 \times 10^{-3}$    | $\mathbf{4.279 \times 10^{-3}}$ |  **24% BER reduction**  |
-|   **1520**    |  19   |    $2.441 \times 10^{-3}$    | $\mathbf{2.567 \times 10^{-3}}$ |       Maintained        |
+| Distance (km) | Spans | Uncompensated / Baseline BER | With ML Equalizer BER | Performance Gain |
+| :---: | :---: | :---: | :---: | :---: |
+| **80** | 1 | $0.000\text{e}+00$ | $0.000\text{e}+00$ | Error-free transmission |
+| **240** | 3 | $0.000\text{e}+00$ | $0.000\text{e}+00$ | Error-free transmission |
+| **400** | 5 | $0.000\text{e}+00$ | $0.000\text{e}+00$ | Error-free transmission |
+| **560** | 7 | $0.000\text{e}+00$ | $0.000\text{e}+00$ | Error-free transmission |
+| **720** | 9 | $0.000\text{e}+00$ | $0.000\text{e}+00$ | Error-free transmission |
+| **880** | 11 | $0.000\text{e}+00$ | $0.000\text{e}+00$ | Error-free transmission |
+| **1040** | 13 | $2.441 \times 10^{-4}$ | $\mathbf{1.222 \times 10^{-4}}$ | **50% BER reduction** |
+| **1200** | 15 | $6.104 \times 10^{-4}$ | $\mathbf{4.890 \times 10^{-4}}$ | **20% BER reduction** |
+| **1360** | 17 | $5.615 \times 10^{-3}$ | $\mathbf{4.279 \times 10^{-3}}$ | **24% BER reduction** |
+| **1520** | 19 | $2.441 \times 10^{-3}$ | $\mathbf{2.567 \times 10^{-3}}$ | Maintained |
 
 ---
 
